@@ -36,6 +36,7 @@ export async function GET(req: Request) {
     orderBy: { name: 'asc' },
     include: {
       scouts: {
+        where: { active: true },
         orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
         include: {
           checkins: {

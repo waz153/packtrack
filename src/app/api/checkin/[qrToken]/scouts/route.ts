@@ -18,7 +18,7 @@ export async function GET(
   }
 
   const scouts = await prisma.scout.findMany({
-    where: { denId },
+    where: { denId, active: true },
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     include: {
       checkins: { where: { eventId: event.id }, select: { id: true } },

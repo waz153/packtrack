@@ -18,7 +18,7 @@ export async function POST(
   }
 
   const scout = await prisma.scout.findUnique({ where: { id: scoutId } })
-  if (!scout) {
+  if (!scout || !scout.active) {
     return NextResponse.json({ error: 'Scout not found' }, { status: 404 })
   }
 
