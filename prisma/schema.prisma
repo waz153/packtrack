@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Scout {
+  id        String              @id @default(cuid())
+  firstName String
+  lastName  String
+  denId     String
+  den       Den                 @relation(fields: [denId], references: [id])
+  checkins  Checkin[]
+  progress  AdventureProgress[]
+  createdAt DateTime            @default(now())
+
+  @@index([denId])
+}
+
+model Den {
+  id      String   @id @default(cuid())
+  name    String   @unique // "Tiger", "Wolf", "Bear", "Webelos", "AOL"
+  logoUrl String? // official BSA den emblem image path
+  scouts  Scout[]
+  people  Person[] // leaders assigned to this den
+}
+
+// Unified admin + den leader model — both get individual passcodes,
+// distinguished by role.
+model Person {
+  id        String    @id @default(cuid())
+  name      String
+  passcode  String // 4-6 digit PIN, admin-assigned
+  role      Role
+  dens      Den[] // leaders: their assigned den(s); admins: can be empty (full access)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  overrides Checkin[]
+}
+
+model Event {
+  id               String      @id @default(cuid())
+  name             String
+  date             DateTime
+  endDate          DateTime? // for multi-day events; display only, does not drive lock/unlock
+  startTime        String? // e.g. "4:00 PM" — free text since calendar has TBDs
+  endTime          String?
+  location         String?
+  notes            String?
+  unlockAt         DateTime?
+  lockAt           DateTime?
+  isManualOverride Boolean     @default(false)
+  qrToken          String      @unique
+  status           EventStatus @default(LOCKED)
+  checkins         Checkin[]
+}
+
+model Checkin {
+  id          String        @id @default(cuid())
+  scoutId     String
+  scout       Scout         @relation(fields: [scoutId], references: [id])
+  eventId     String
+  event       Event         @relation(fields: [eventId], references: [id])
+  checkedInAt DateTime      @default(now())
+  method      CheckinMethod
+  checkedById String? // Person.id, if override
+  checkedBy   Person?       @relation(fields: [checkedById], references: [id])
+
+  @@unique([scoutId, eventId])
+  @@index([eventId])
+}
+
+model Adventure {
+  id       String              @id @default(cuid())
+  name     String
+  denLevel String // which den this applies to
+  progress AdventureProgress[]
+}
+
+model AdventureProgress {
+  id          String     @id @default(cuid())
+  scoutId     String
+  scout       Scout      @relation(fields: [scoutId], references: [id])
+  adventureId String
+  adventure   Adventure  @relation(fields: [adventureId], references: [id])
+  completedAt DateTime?
+
+  @@unique([scoutId, adventureId])
+}
+
+enum Role {
+  ADMIN
+  LEADER
+}
+
+enum EventStatus {
+  LOCKED
+  UNLOCKED
+  CANCELLED
+}
+
+enum CheckinMethod {
+  SELF
+  OVERRIDE
+}
