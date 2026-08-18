@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCode from 'qrcode'
+import { formatEventDate } from '@/lib/formatDate'
 
 type Scout = { id: string; checkedIn: boolean }
 type Den = { id: string; name: string; scouts: Scout[] }
@@ -22,7 +23,6 @@ export default function AdminHome() {
   const [eventId, setEventId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [checkinUrl, setCheckinUrl] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -43,41 +43,32 @@ export default function AdminHome() {
   }, [eventId, router])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch-on-mount, then poll
     load()
     const interval = setInterval(load, POLL_MS)
     return () => clearInterval(interval)
   }, [load])
 
-  useEffect(() => {
-    if (!data || typeof window === 'undefined') return
-    const url = `${window.location.origin}/checkin/${data.event.qrToken}`
-    setCheckinUrl(url)
-    if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, url, { width: 220, margin: 1 })
-    }
-  }, [data])
+  const checkinUrl =
+    data && typeof window !== 'undefined' ? `${window.location.origin}/checkin/${data.event.qrToken}` : ''
 
-  async function logout() {
-    await fetch('/api/staff/logout', { method: 'POST' })
-    router.push('/staff/login')
-  }
+  useEffect(() => {
+    if (checkinUrl && canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, checkinUrl, { width: 220, margin: 1 })
+    }
+  }, [checkinUrl])
 
   if (!data) {
-    return <main style={{ padding: 24 }}>{error || 'Loading…'}</main>
+    return <p>{error || 'Loading…'}</p>
   }
 
   return (
-    <main style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px 64px' }}>
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12 }}>
-        <h1 style={{ fontSize: 20 }}>Admin — {data.event.name}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <a href="/staff/dashboard" style={linkButtonStyle}>
-            Dashboard
-          </a>
-          <button onClick={logout} style={linkButtonStyle}>
-            Log out
-          </button>
-        </div>
+        <h1 style={{ fontSize: 20 }}>{data.event.name}</h1>
+        <a href="/staff/dashboard" style={linkButtonStyle}>
+          Manual check-in
+        </a>
       </div>
 
       {data.events.length > 1 && (
@@ -88,7 +79,7 @@ export default function AdminHome() {
         >
           {data.events.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.name} — {new Date(e.date).toLocaleDateString()}
+              {e.name} — {formatEventDate(e.date)}
             </option>
           ))}
         </select>
@@ -140,7 +131,7 @@ export default function AdminHome() {
         <canvas ref={canvasRef} style={{ maxWidth: '100%' }} />
         <p style={{ marginTop: 8, fontSize: 13, wordBreak: 'break-all', color: '#666' }}>{checkinUrl}</p>
       </div>
-    </main>
+    </div>
   )
 }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatEventDate } from '@/lib/formatDate'
 
 type Scout = {
   id: string
@@ -48,6 +49,7 @@ export default function Dashboard() {
   }, [eventId, router])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch-on-mount, then poll
     load()
     const interval = setInterval(load, POLL_MS)
     return () => clearInterval(interval)
@@ -112,7 +114,7 @@ export default function Dashboard() {
         >
           {data.events.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.name} — {new Date(e.date).toLocaleDateString()}
+              {e.name} — {formatEventDate(e.date)}
             </option>
           ))}
         </select>
@@ -167,7 +169,9 @@ const rowStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 14px',
   borderRadius: 8,
-  border: '1px solid #ddd',
+  borderWidth: 1,
+  borderStyle: 'solid',
+  borderColor: '#ddd',
   background: '#fff',
   fontSize: 15,
   textAlign: 'left',

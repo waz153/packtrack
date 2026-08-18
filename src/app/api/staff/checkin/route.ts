@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 
-async function authorizeForScout(personId: string, scoutId: string) {
+async function authorizeForScout(personId: string, scoutId: string, requireActiveScout: boolean) {
   const person = await prisma.person.findUnique({ where: { id: personId }, include: { dens: true } })
   if (!person || !person.active) return null
   const scout = await prisma.scout.findUnique({ where: { id: scoutId } })
   if (!scout) return null
+  if (requireActiveScout && !scout.active) return null
   if (person.role !== 'ADMIN' && !person.dens.some((d) => d.id === scout.denId)) return null
   return person
 }
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'eventId and scoutId are required' }, { status: 400 })
   }
 
-  const person = await authorizeForScout(session.personId, scoutId)
+  const person = await authorizeForScout(session.personId, scoutId, true)
   if (!person) return NextResponse.json({ error: 'Not authorized for this scout' }, { status: 403 })
 
   const checkin = await prisma.checkin.upsert({
@@ -41,7 +42,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'eventId and scoutId are required' }, { status: 400 })
   }
 
-  const person = await authorizeForScout(session.personId, scoutId)
+  const person = await authorizeForScout(session.personId, scoutId, false)
   if (!person) return NextResponse.json({ error: 'Not authorized for this scout' }, { status: 403 })
 
   await prisma.checkin.deleteMany({ where: { scoutId, eventId } })

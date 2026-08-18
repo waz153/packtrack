@@ -15,6 +15,7 @@ model Scout {
   den       Den                 @relation(fields: [denId], references: [id])
   checkins  Checkin[]
   progress  AdventureProgress[]
+  active    Boolean             @default(true)
   createdAt DateTime            @default(now())
 
   @@index([denId])
