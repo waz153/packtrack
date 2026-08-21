@@ -1,3 +1,5 @@
+import Image from 'next/image'
+
 export default function Home() {
   return (
     <main
@@ -13,6 +15,7 @@ export default function Home() {
         gap: 12,
       }}
     >
+      <Image src="/logo.png" alt="Cub Scouts" width={120} height={120} priority style={{ objectFit: 'contain' }} />
       <h1 style={{ fontSize: 28 }}>PackTrack</h1>
       <p style={{ color: '#666', maxWidth: 320 }}>
         Scan the QR code at your event to check in, or head to staff login if you&apos;re a
