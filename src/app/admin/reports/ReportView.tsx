@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { formatEventDate } from '@/lib/formatDate'
+import { toCsv, downloadCsv } from '@/lib/csv'
+import ReportsTabs from './ReportsTabs'
 
 type EventOption = { id: string; name: string; date: string }
 type ReportRow = {
@@ -20,38 +22,20 @@ type ReportData = {
   totals: { checkedIn: number; total: number }
 }
 
-function csvEscape(value: string) {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
-  return value
-}
-
-function downloadCsv(report: ReportData) {
-  const header = ['Den', 'First Name', 'Last Name', 'Checked In', 'Checked In At', 'Method', 'Checked By']
-  const lines = [header.join(',')]
-  for (const r of report.rows) {
-    lines.push(
-      [
-        r.denName,
-        r.firstName,
-        r.lastName,
-        r.checkedIn ? 'Yes' : 'No',
-        r.checkedInAt ? new Date(r.checkedInAt).toLocaleString() : '',
-        r.method ?? '',
-        r.checkedByName ?? '',
-      ]
-        .map((v) => csvEscape(String(v)))
-        .join(',')
-    )
-  }
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${report.event.name.replace(/[^a-z0-9]+/gi, '-')}-attendance.csv`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+function exportReport(report: ReportData) {
+  const csv = toCsv(
+    ['Den', 'First Name', 'Last Name', 'Checked In', 'Checked In At', 'Method', 'Checked By'],
+    report.rows.map((r) => [
+      r.denName,
+      r.firstName,
+      r.lastName,
+      r.checkedIn ? 'Yes' : 'No',
+      r.checkedInAt ? new Date(r.checkedInAt).toLocaleString() : '',
+      r.method ?? '',
+      r.checkedByName ?? '',
+    ])
+  )
+  downloadCsv(`${report.event.name}-attendance.csv`, csv)
 }
 
 function ReportViewInner() {
@@ -92,6 +76,7 @@ function ReportViewInner() {
   return (
     <div>
       <h1 style={{ fontSize: 20 }}>Reports</h1>
+      <ReportsTabs />
 
       {events && events.length > 0 && (
         <select
@@ -117,7 +102,7 @@ function ReportViewInner() {
             <p style={{ color: '#666', fontSize: 14 }}>
               {report.totals.checkedIn} / {report.totals.total} checked in
             </p>
-            <button onClick={() => downloadCsv(report)} style={primaryButtonStyle}>
+            <button onClick={() => exportReport(report)} style={primaryButtonStyle}>
               Export CSV
             </button>
           </div>
