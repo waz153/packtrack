@@ -38,3 +38,23 @@ export async function POST(
     scout: { id: scout.id, firstName: scout.firstName, lastName: scout.lastName },
   })
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ qrToken: string; scoutId: string }> }
+) {
+  const { qrToken, scoutId } = await params
+
+  const event = await prisma.event.findUnique({ where: { qrToken } })
+  if (!event) {
+    return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  }
+
+  if (getEffectiveStatus(event) !== 'UNLOCKED') {
+    return NextResponse.json({ error: 'Check-in is not open for this event' }, { status: 403 })
+  }
+
+  await prisma.checkin.deleteMany({ where: { scoutId, eventId: event.id } })
+
+  return NextResponse.json({ checkedIn: false })
+}

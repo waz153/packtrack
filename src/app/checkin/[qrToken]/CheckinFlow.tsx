@@ -18,7 +18,7 @@ export default function CheckinFlow({
   const [selectedDen, setSelectedDen] = useState<Den | null>(null)
   const [scouts, setScouts] = useState<Scout[]>([])
   const [loading, setLoading] = useState(false)
-  const [confirmedName, setConfirmedName] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<{ name: string; undone: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function openDen(den: Den) {
@@ -37,25 +37,32 @@ export default function CheckinFlow({
     }
   }
 
-  async function checkIn(scout: Scout) {
-    if (confirmedName) return
+  async function toggleCheckIn(scout: Scout) {
+    if (confirmation) return
+    const undoing = scout.checkedIn
     try {
-      const res = await fetch(`/api/checkin/${qrToken}/scouts/${scout.id}`, { method: 'POST' })
+      const res = await fetch(`/api/checkin/${qrToken}/scouts/${scout.id}`, {
+        method: undoing ? 'DELETE' : 'POST',
+      })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Check-in failed')
-      setScouts((prev) => prev.map((s) => (s.id === scout.id ? { ...s, checkedIn: true } : s)))
-      setConfirmedName(scout.firstName)
-      setTimeout(() => setConfirmedName(null), 1800)
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      setScouts((prev) => prev.map((s) => (s.id === scout.id ? { ...s, checkedIn: !undoing } : s)))
+      setConfirmation({ name: scout.firstName, undone: undoing })
+      setTimeout(() => setConfirmation(null), 1800)
     } catch {
-      setError('Check-in failed. Check your connection and try again.')
+      setError('That didn’t go through. Check your connection and try again.')
     }
   }
 
-  if (confirmedName) {
+  if (confirmation) {
     return (
       <main style={styles.centered}>
-        <div style={{ fontSize: 64 }}>✅</div>
-        <h1 style={{ fontSize: 24, marginTop: 12 }}>{confirmedName}, you&apos;re checked in!</h1>
+        <div style={{ fontSize: 64 }}>{confirmation.undone ? '↩️' : '✅'}</div>
+        <h1 style={{ fontSize: 24, marginTop: 12 }}>
+          {confirmation.undone
+            ? `${confirmation.name}'s check-in was undone.`
+            : `${confirmation.name}, you're checked in!`}
+        </h1>
       </main>
     )
   }
@@ -70,9 +77,7 @@ export default function CheckinFlow({
         <div style={styles.denGrid}>
           {dens.map((den) => (
             <button key={den.id} onClick={() => openDen(den)} style={styles.denTileButton}>
-              <div style={{ ...styles.denTile, background: denColor(den.name) }}>
-                {den.name[0]}
-              </div>
+              <DenTile name={den.name} />
               <span style={{ marginTop: 8, fontWeight: 600 }}>{den.name}</span>
             </button>
           ))}
@@ -99,12 +104,17 @@ export default function CheckinFlow({
 
       {error && <p style={{ color: '#B23B3B', padding: '0 16px' }}>{error}</p>}
       {loading && <p style={{ padding: '0 16px', color: '#666' }}>Loading scouts…</p>}
+      {!loading && scouts.length > 0 && (
+        <p style={{ padding: '0 16px', color: '#999', fontSize: 12 }}>
+          Checked in by mistake? Tap the name again to undo.
+        </p>
+      )}
 
       <div style={{ padding: '8px 16px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {scouts.map((scout) => (
           <button
             key={scout.id}
-            onClick={() => checkIn(scout)}
+            onClick={() => toggleCheckIn(scout)}
             style={{
               ...styles.scoutRow,
               ...(scout.checkedIn ? styles.scoutRowChecked : {}),
@@ -118,6 +128,33 @@ export default function CheckinFlow({
         ))}
       </div>
     </main>
+  )
+}
+
+const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp']
+
+function DenTile({ name }: { name: string }) {
+  const [extIndex, setExtIndex] = useState(0)
+
+  if (extIndex >= LOGO_EXTENSIONS.length) {
+    return (
+      <div style={{ ...styles.denTile, background: denColor(name) }}>{name[0]}</div>
+    )
+  }
+
+  const src = `/dens/${name.toLowerCase()}.${LOGO_EXTENSIONS[extIndex]}`
+
+  return (
+    <div style={{ ...styles.denTile, background: '#f2f2f2', padding: 8 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- den logos are user-uploaded, extension unknown at build time */}
+      <img
+        key={src}
+        src={src}
+        alt={name}
+        onError={() => setExtIndex((i) => i + 1)}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+    </div>
   )
 }
 
