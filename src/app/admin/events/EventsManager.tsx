@@ -214,6 +214,9 @@ export default function EventsManager() {
                   <a href={`/checkin/${ev.qrToken}`} target="_blank" rel="noreferrer" style={secondaryButtonStyle}>
                     View check-in page
                   </a>
+                  <a href={`/admin/events/${ev.id}/print`} target="_blank" rel="noreferrer" style={secondaryButtonStyle}>
+                    Print flyer
+                  </a>
                   <a href={`/admin/reports?eventId=${ev.id}`} style={secondaryButtonStyle}>
                     Report
                   </a>
