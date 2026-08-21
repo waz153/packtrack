@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function StaffLoginPage() {
   const router = useRouter()
@@ -53,6 +54,13 @@ export default function StaffLoginPage() {
         onSubmit={submit}
         style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}
       >
+        <Image
+          src="/logo.png"
+          alt="Cub Scouts"
+          width={80}
+          height={80}
+          style={{ objectFit: 'contain', margin: '0 auto 4px' }}
+        />
         <h1 style={{ fontSize: 22, textAlign: 'center', marginBottom: 12 }}>Staff Login</h1>
 
         <label style={{ fontSize: 14, color: '#444' }}>
