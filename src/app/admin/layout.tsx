@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
   if (!admin) redirect('/staff/login')
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '16px 16px 64px' }}>
+    <div className="print-container" style={{ maxWidth: 720, margin: '0 auto', padding: '16px 16px 64px' }}>
       <AdminNav />
       {children}
     </div>

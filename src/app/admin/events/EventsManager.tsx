@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatEventDate } from '@/lib/formatDate'
 
 type Event = {
@@ -125,7 +125,98 @@ export default function EventsManager() {
     }
   }
 
+  const { upcoming, past } = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- intentional: partitions the list as of this load, not a live clock
+    const now = Date.now()
+    const list = events ?? []
+    return {
+      upcoming: list.filter((ev) => new Date(ev.date).getTime() >= now).sort((a, b) => a.date.localeCompare(b.date)),
+      past: list.filter((ev) => new Date(ev.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date)),
+    }
+  }, [events])
+
   if (!events) return <p>{error || 'Loading…'}</p>
+
+  function renderEvent(ev: Event, highlight: boolean) {
+    return (
+      <div key={ev.id} style={{ ...cardStyle, ...(highlight ? highlightCardStyle : {}) }}>
+        {editingId === ev.id ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <EventFields form={editForm} setForm={setEditForm} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => saveEdit(ev.id)} disabled={busyId === ev.id} style={primaryButtonStyle}>
+                Save
+              </button>
+              <button onClick={() => setEditingId(null)} style={secondaryButtonStyle}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}>
+              <div>
+                {highlight && <div style={nextUpLabelStyle}>NEXT UP</div>}
+                <div style={{ fontWeight: 600 }}>{ev.name}</div>
+                <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
+                  {formatEventDate(ev.date)}
+                  {ev.startTime ? ` · ${ev.startTime}` : ''}
+                  {ev.endTime ? `–${ev.endTime}` : ''}
+                  {ev.location ? ` · ${ev.location}` : ''}
+                </div>
+                {ev.notes && <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{ev.notes}</div>}
+                <div style={{ fontSize: 13, marginTop: 4 }}>
+                  <StatusBadge status={ev.effectiveStatus} /> · {ev.checkinCount} checked in
+                </div>
+              </div>
+              <button onClick={() => startEdit(ev)} style={secondaryButtonStyle}>
+                Edit
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {ev.status !== 'UNLOCKED' && (
+                <button
+                  onClick={() => setStatus(ev.id, 'UNLOCKED')}
+                  disabled={busyId === ev.id}
+                  style={secondaryButtonStyle}
+                >
+                  Unlock
+                </button>
+              )}
+              {ev.status !== 'LOCKED' && (
+                <button
+                  onClick={() => setStatus(ev.id, 'LOCKED')}
+                  disabled={busyId === ev.id}
+                  style={secondaryButtonStyle}
+                >
+                  Lock
+                </button>
+              )}
+              {ev.status !== 'CANCELLED' && (
+                <button
+                  onClick={() => setStatus(ev.id, 'CANCELLED')}
+                  disabled={busyId === ev.id}
+                  style={secondaryButtonStyle}
+                >
+                  Cancel event
+                </button>
+              )}
+              <a href={`/checkin/${ev.qrToken}`} target="_blank" rel="noreferrer" style={secondaryButtonStyle}>
+                View check-in page
+              </a>
+              <a href={`/admin/events/${ev.id}/print`} target="_blank" rel="noreferrer" style={secondaryButtonStyle}>
+                Print flyer
+              </a>
+              <a href={`/admin/reports?eventId=${ev.id}`} style={secondaryButtonStyle}>
+                Report
+              </a>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -147,82 +238,20 @@ export default function EventsManager() {
         </form>
       )}
 
-      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {events.map((ev) => (
-          <div key={ev.id} style={cardStyle}>
-            {editingId === ev.id ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <EventFields form={editForm} setForm={setEditForm} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => saveEdit(ev.id)} disabled={busyId === ev.id} style={primaryButtonStyle}>
-                    Save
-                  </button>
-                  <button onClick={() => setEditingId(null)} style={secondaryButtonStyle}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{ev.name}</div>
-                    <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
-                      {formatEventDate(ev.date)}
-                      {ev.startTime ? ` · ${ev.startTime}` : ''}
-                      {ev.endTime ? `–${ev.endTime}` : ''}
-                      {ev.location ? ` · ${ev.location}` : ''}
-                    </div>
-                    {ev.notes && <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{ev.notes}</div>}
-                    <div style={{ fontSize: 13, marginTop: 4 }}>
-                      <StatusBadge status={ev.effectiveStatus} /> · {ev.checkinCount} checked in
-                    </div>
-                  </div>
-                  <button onClick={() => startEdit(ev)} style={secondaryButtonStyle}>
-                    Edit
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  {ev.status !== 'UNLOCKED' && (
-                    <button
-                      onClick={() => setStatus(ev.id, 'UNLOCKED')}
-                      disabled={busyId === ev.id}
-                      style={secondaryButtonStyle}
-                    >
-                      Unlock
-                    </button>
-                  )}
-                  {ev.status !== 'LOCKED' && (
-                    <button
-                      onClick={() => setStatus(ev.id, 'LOCKED')}
-                      disabled={busyId === ev.id}
-                      style={secondaryButtonStyle}
-                    >
-                      Lock
-                    </button>
-                  )}
-                  {ev.status !== 'CANCELLED' && (
-                    <button
-                      onClick={() => setStatus(ev.id, 'CANCELLED')}
-                      disabled={busyId === ev.id}
-                      style={secondaryButtonStyle}
-                    >
-                      Cancel event
-                    </button>
-                  )}
-                  <a href={`/checkin/${ev.qrToken}`} target="_blank" rel="noreferrer" style={secondaryButtonStyle}>
-                    View check-in page
-                  </a>
-                  <a href={`/admin/reports?eventId=${ev.id}`} style={secondaryButtonStyle}>
-                    Report
-                  </a>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+      <h2 style={sectionHeadingStyle}>Upcoming</h2>
+      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {upcoming.length === 0 && <p style={{ color: '#666', fontSize: 14 }}>No upcoming events.</p>}
+        {upcoming.map((ev, i) => renderEvent(ev, i === 0))}
       </div>
+
+      {past.length > 0 && (
+        <details style={{ marginTop: 24 }}>
+          <summary style={sectionHeadingStyle}>Past ({past.length})</summary>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {past.map((ev) => renderEvent(ev, false))}
+          </div>
+        </details>
+      )}
     </div>
   )
 }
@@ -300,8 +329,29 @@ function StatusBadge({ status }: { status: string }) {
 
 const cardStyle: React.CSSProperties = {
   padding: 14,
-  border: '1px solid #eee',
+  borderWidth: 1,
+  borderStyle: 'solid',
+  borderColor: '#eee',
   borderRadius: 10,
+}
+
+const highlightCardStyle: React.CSSProperties = {
+  borderColor: '#171717',
+  background: '#fafafa',
+}
+
+const nextUpLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: '#171717',
+  letterSpacing: 0.5,
+  marginBottom: 4,
+}
+
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 600,
+  marginTop: 24,
 }
 
 const formStyle: React.CSSProperties = {
